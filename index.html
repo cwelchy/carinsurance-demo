@@ -10,13 +10,13 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #111827; }
-  @keyframes tdBounce { 0%,60%,100%{transform:translateY(0);opacity:.35} 30%{transform:translateY(-5px);opacity:1} }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useRef, useEffect } = React;
+const { useState } = React;
 
 const BLUE = "#00AAFF";
 const BLUE_DARK = "#0088DD";
@@ -42,11 +42,10 @@ function PhoneIcon({ size = 20, color = "currentColor" }) {
   );
 }
 
-function SendIcon() {
+function MessageIcon({ size = 20, color = "currentColor" }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="22" y1="2" x2="11" y2="13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
     </svg>
   );
 }
@@ -85,34 +84,7 @@ function BoltIcon({ size = 18 }) {
   );
 }
 
-function TypingDots() {
-  return (
-    <div style={{ display: "flex", gap: 5, alignItems: "center", padding: "2px 0" }}>
-      {[0, 1, 2].map(i => (
-        <div key={i} style={{
-          width: 7, height: 7, borderRadius: "50%", background: GRAY_300,
-          animation: `tdBounce 1.2s ease-in-out ${i * 0.15}s infinite`,
-        }} />
-      ))}
-    </div>
-  );
-}
-
-function AgentDot() {
-  return (
-    <div style={{
-      width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-      background: `linear-gradient(135deg, ${BLUE}, ${BLUE_DARK})`,
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
-      </svg>
-    </div>
-  );
-}
-
-function CarrierCard({ name, logo, headline, bullets, starred }) {
+function CarrierCard({ name, logo, headline, bullets, starred, delay }) {
   const [h, setH] = useState(false);
   return (
     <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
@@ -122,6 +94,7 @@ function CarrierCard({ name, logo, headline, bullets, starred }) {
         border: `1px solid ${h ? BLUE : GRAY_200}`, borderRadius: 12, marginBottom: 16,
         transition: "border-color .15s, box-shadow .15s", cursor: "pointer",
         boxShadow: h ? "0 4px 20px rgba(0,170,255,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
+        animation: `fadeUp 0.4s ease ${delay}s both`,
       }}>
       {starred && (
         <div style={{
@@ -163,7 +136,7 @@ function LibertyMutualLogo() {
 function AllstateLogo() {
   return (<div style={{ textAlign: "center" }}>
     <div style={{ fontWeight: 800, fontSize: 20, color: "#003DA5", fontFamily: "Georgia, serif" }}>Allstate</div>
-    <div style={{ fontSize: 9, color: GRAY_500, marginTop: 1 }}>You're in good hands.®</div>
+    <div style={{ fontSize: 9, color: GRAY_500, marginTop: 1 }}>You're in good hands.&reg;</div>
   </div>);
 }
 
@@ -189,192 +162,10 @@ function CityBanner() {
   );
 }
 
-const AI_FLOW = [
-  { reply: "Great! To match you with the best agent, are you currently insured?", quick: ["Yes", "No"] },
-  { reply: "Got it. Who's your current carrier?", quick: ["Progressive", "GEICO", "State Farm", "Other"] },
-  { reply: "And what do you drive? Year, make, and model is perfect.", quick: null },
-  { reply: "Last thing — what's the best number to reach you? Your agent can call you directly.", quick: null },
-  { reply: null, quick: null },
-];
-
-function ChatWidget() {
-  const [messages, setMessages] = useState([
-    { from: "ai", text: "Hi there! \u{1F44B} I'm Alex from CarInsurance.com." },
-    { from: "ai", text: `I can connect you with a licensed agent in ${CITY} who can get you a personalized quote. Want to get started?` },
-  ]);
-  const [input, setInput] = useState("");
-  const [step, setStep] = useState(0);
-  const [typing, setTyping] = useState(false);
-  const [quickReplies, setQuickReplies] = useState(["Yes, let's go!", "How does this work?"]);
-  const [done, setDone] = useState(false);
-  const endRef = useRef(null);
-
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, typing]);
-
-  const pushAI = (text, quicks, delay = 1100) => {
-    setTyping(true);
-    setQuickReplies(null);
-    setTimeout(() => {
-      setTyping(false);
-      setMessages(prev => [...prev, { from: "ai", text }]);
-      if (quicks) setQuickReplies(quicks);
-    }, delay);
-  };
-
-  const pushAIMulti = (texts, quicks, delay = 1100) => {
-    setTyping(true);
-    setQuickReplies(null);
-    let d = delay;
-    texts.forEach((text, i) => {
-      const isLast = i === texts.length - 1;
-      setTimeout(() => {
-        setMessages(prev => [...prev, { from: "ai", text }]);
-        if (isLast) {
-          setTyping(false);
-          if (quicks) setQuickReplies(quicks);
-        }
-      }, d);
-      d += 1200;
-    });
-  };
-
-  const handleSend = (text) => {
-    if (!text.trim() || done) return;
-    setMessages(prev => [...prev, { from: "user", text: text.trim() }]);
-    setInput("");
-    setQuickReplies(null);
-
-    const s = step;
-    setStep(s + 1);
-
-    if (s === 0 && text.toLowerCase().includes("how")) {
-      pushAI(
-        "I'm an AI assistant \u2014 I'll ask a few quick questions, then connect you live with a licensed agent in your area. No forms, takes about 60 seconds. Ready?",
-        ["Yes, let's go!"],
-      );
-      setStep(0);
-      return;
-    }
-
-    if (s === AI_FLOW.length - 1) {
-      setDone(true);
-      pushAIMulti([
-        `Perfect! I found 3 licensed agents in ${CITY} with competitive rates for your vehicle. \u{1F389}`,
-        `Connecting you now with Agent Sarah M. \u2014 she specializes in saving drivers in your area an average of $47/mo. She'll have your info so you won't repeat anything. Hold tight!`,
-      ], null, 1000);
-      return;
-    }
-
-    if (s < AI_FLOW.length) {
-      const next = AI_FLOW[s];
-      pushAI(next.reply, next.quick);
-    }
-  };
-
-  return (
-    <div style={{
-      border: `1px solid ${GRAY_200}`, borderRadius: 16, overflow: "hidden",
-      boxShadow: "0 6px 32px rgba(0,0,0,0.08)", background: "white",
-    }}>
-      <div style={{
-        background: BLUE, padding: "12px 18px",
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
-        <div style={{
-          width: 9, height: 9, borderRadius: "50%", background: "#4ADE80",
-          boxShadow: "0 0 6px #4ADE80",
-        }} />
-        <span style={{ color: "white", fontWeight: 600, fontSize: 14 }}>Chat with Alex — AI Agent</span>
-        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, marginLeft: "auto" }}>Online now</span>
-      </div>
-
-      <div style={{
-        height: 380, overflowY: "auto", padding: "14px 14px 6px",
-        background: GRAY_50,
-      }}>
-        {messages.map((msg, i) => (
-          <div key={i} style={{
-            display: "flex", flexDirection: msg.from === "user" ? "row-reverse" : "row",
-            gap: 8, marginBottom: 10, alignItems: "flex-end",
-          }}>
-            {msg.from === "ai" && <AgentDot />}
-            <div style={{
-              maxWidth: "80%", padding: "10px 14px",
-              borderRadius: msg.from === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-              background: msg.from === "user" ? BLUE : "white",
-              color: msg.from === "user" ? "white" : GRAY_900,
-              fontSize: 14, lineHeight: 1.5,
-              boxShadow: msg.from === "user" ? "none" : "0 1px 3px rgba(0,0,0,0.05)",
-              border: msg.from === "user" ? "none" : `1px solid ${GRAY_200}`,
-            }}>
-              {msg.text}
-            </div>
-          </div>
-        ))}
-
-        {typing && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "flex-end" }}>
-            <AgentDot />
-            <div style={{
-              padding: "10px 14px", borderRadius: "14px 14px 14px 4px",
-              background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-              border: `1px solid ${GRAY_200}`,
-            }}><TypingDots /></div>
-          </div>
-        )}
-        <div ref={endRef} />
-      </div>
-
-      {quickReplies && !typing && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "6px 14px 10px", background: GRAY_50 }}>
-          {quickReplies.map((opt, i) => (
-            <button key={i} onClick={() => handleSend(opt)} style={{
-              padding: "7px 16px", borderRadius: 20, border: `1.5px solid ${BLUE}`,
-              background: "white", color: BLUE, fontSize: 13, fontWeight: 600,
-              cursor: "pointer", transition: "all .12s",
-            }}
-              onMouseEnter={e => { e.target.style.background = BLUE; e.target.style.color = "white"; }}
-              onMouseLeave={e => { e.target.style.background = "white"; e.target.style.color = BLUE; }}
-            >{opt}</button>
-          ))}
-        </div>
-      )}
-
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "10px 14px", borderTop: `1px solid ${GRAY_200}`, background: "white",
-      }}>
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && handleSend(input)}
-          placeholder={done ? "Agent connecting..." : "Type your message..."}
-          disabled={done}
-          style={{
-            flex: 1, padding: "10px 14px", borderRadius: 24,
-            border: `1.5px solid ${GRAY_200}`, fontSize: 14, outline: "none",
-            transition: "border-color .15s", opacity: done ? 0.5 : 1,
-          }}
-          onFocus={e => e.target.style.borderColor = BLUE}
-          onBlur={e => e.target.style.borderColor = GRAY_200}
-        />
-        <button onClick={() => handleSend(input)} disabled={done}
-          style={{
-            width: 40, height: 40, borderRadius: "50%", background: BLUE,
-            border: "none", cursor: done ? "default" : "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0, opacity: done ? 0.5 : 1,
-          }}>
-          <SendIcon />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function App() {
   return (
     <div style={{ minHeight: "100vh", background: "white", color: GRAY_900 }}>
+
       {/* Header */}
       <header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -427,7 +218,7 @@ function App() {
             "Get a customized quote today and see if you could save",
             "Fast, easy and reliable claims service available 24 hours a day",
             "Trusted by millions of drivers to insure what's important",
-          ]} />
+          ]} delay={0.05} />
 
         <CarrierCard name="Liberty Mutual" logo={<LibertyMutualLogo />}
           headline="See Why Michigan Drivers Could Save $700 With Liberty Mutual"
@@ -436,7 +227,7 @@ function App() {
             "Let Us See How Much We Could Save You!",
             "Only Pay For What You Need",
             "We Customize So You Could Save $700 On Car Insurance",
-          ]} />
+          ]} delay={0.1} />
 
         <CarrierCard name="Allstate" logo={<AllstateLogo />}
           headline="Bundle home & auto and save up to 25% with Allstate"
@@ -444,100 +235,110 @@ function App() {
             "Get a free personalized quote in minutes",
             "24/7 claims support when you need it most",
             "Local agents who know your neighborhood",
-          ]} />
+          ]} delay={0.15} />
       </div>
 
-      {/* CTA Section */}
+      {/* ═══════════════════════════════════════════
+          CTA SECTION: Call or Text
+          ═══════════════════════════════════════════ */}
       <div style={{
         marginTop: 40, background: GRAY_50,
         borderTop: `1px solid ${GRAY_200}`, padding: "48px 20px 56px",
       }}>
-        <div style={{ maxWidth: 780, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <div style={{ maxWidth: 540, margin: "0 auto" }}>
+          <div style={{
+            background: "white", borderRadius: 20,
+            border: `1px solid ${GRAY_200}`, padding: "40px 36px",
+            textAlign: "center",
+            boxShadow: "0 6px 32px rgba(0,0,0,0.06)",
+          }}>
+            {/* Badge */}
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               background: "#FFFBEB", border: "1px solid #FDE68A",
-              borderRadius: 20, padding: "5px 14px", marginBottom: 16,
+              borderRadius: 20, padding: "5px 14px", marginBottom: 20,
               fontSize: 13, fontWeight: 600, color: "#92400E",
             }}>
-              <BoltIcon size={14} /> Instant connection — no hold time
+              <BoltIcon size={14} /> Instant connection &mdash; no hold time
             </div>
+
+            {/* Title */}
             <h2 style={{
-              fontSize: 28, fontWeight: 800, color: GRAY_900,
+              fontSize: 26, fontWeight: 800, color: GRAY_900,
               margin: "0 0 8px", lineHeight: 1.25,
             }}>
-              Talk to a licensed agent in {CITY} right now.
+              Talk to a licensed agent in<br/>{CITY} right now.
             </h2>
-            <p style={{ fontSize: 15, color: GRAY_500, margin: 0 }}>
-              Chat with our AI below or call directly — either way, you're connected in seconds.
+            <p style={{ fontSize: 15, color: GRAY_500, margin: "0 0 28px", lineHeight: 1.5 }}>
+              Call or text our AI agent &mdash; it answers instantly,<br/>
+              qualifies your needs, and connects you live.
+            </p>
+
+            {/* Phone number */}
+            <div style={{
+              fontSize: 32, fontWeight: 800, color: GRAY_900,
+              letterSpacing: -0.5, marginBottom: 24,
+            }}>
+              {PHONE_DISPLAY}
+            </div>
+
+            {/* Buttons */}
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <a href={`tel:${PHONE_RAW}`} style={{
+                flex: "1 1 0", maxWidth: 220,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                padding: "16px 20px", background: BLUE, color: "white",
+                borderRadius: 12, fontWeight: 700, fontSize: 16,
+                textDecoration: "none", transition: "background .15s, transform .1s",
+                boxShadow: "0 3px 12px rgba(0,170,255,0.25)",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = BLUE_DARK; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = BLUE; e.currentTarget.style.transform = "translateY(0)"; }}
+              >
+                <PhoneIcon size={20} color="white" />
+                Call Now
+              </a>
+
+              <a href={`sms:${PHONE_RAW}&body=Hi%2C%20I%27m%20looking%20for%20car%20insurance%20in%20${ZIP}`} style={{
+                flex: "1 1 0", maxWidth: 220,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                padding: "16px 20px", background: GREEN, color: "white",
+                borderRadius: 12, fontWeight: 700, fontSize: 16,
+                textDecoration: "none", transition: "background .15s, transform .1s",
+                boxShadow: "0 3px 12px rgba(34,197,94,0.25)",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#16A34A"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = GREEN; e.currentTarget.style.transform = "translateY(0)"; }}
+              >
+                <MessageIcon size={20} color="white" />
+                Text Now
+              </a>
+            </div>
+
+            {/* Subtext */}
+            <p style={{ fontSize: 13, color: GRAY_300, margin: "16px 0 0" }}>
+              Average connection time: 28 seconds
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-            <div style={{ flex: "1 1 0", minWidth: 0 }}>
-              <ChatWidget />
-            </div>
-
-            <div style={{ width: 240, flexShrink: 0 }}>
-              <div style={{
-                background: "white", borderRadius: 16,
-                border: `1px solid ${GRAY_200}`, padding: "28px 20px",
-                textAlign: "center",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
-                position: "sticky", top: 80,
+          {/* Trust badges */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 14, marginTop: 24, flexWrap: "wrap",
+          }}>
+            {[
+              "\u{1F512} Info never shared without consent",
+              "\u{1F4CD} Licensed agents in Michigan",
+              "\u26A1 Connected in under 30 seconds",
+            ].map((t, i) => (
+              <span key={i} style={{
+                fontSize: 12, color: GRAY_500, background: "white",
+                padding: "5px 12px", borderRadius: 20,
+                border: `1px solid ${GRAY_100}`,
               }}>
-                <div style={{
-                  width: 52, height: 52, borderRadius: "50%", margin: "0 auto 14px",
-                  background: "linear-gradient(135deg, #DBEAFE, #EFF6FF)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <PhoneIcon size={24} color={BLUE} />
-                </div>
-
-                <p style={{ fontSize: 15, fontWeight: 700, color: GRAY_900, margin: "0 0 4px" }}>
-                  Prefer to talk?
-                </p>
-                <p style={{ fontSize: 13, color: GRAY_500, margin: "0 0 18px", lineHeight: 1.45 }}>
-                  Our AI picks up instantly and transfers you to a live, licensed agent.
-                </p>
-
-                <a href={`tel:${PHONE_RAW}`} style={{
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  padding: "14px 16px", background: BLUE, color: "white",
-                  borderRadius: 12, fontWeight: 700, fontSize: 15,
-                  textDecoration: "none", transition: "background .15s",
-                  boxShadow: "0 3px 12px rgba(0,170,255,0.2)",
-                }}>
-                  <PhoneIcon size={18} color="white" />
-                  Call Now
-                </a>
-
-                <p style={{ fontSize: 20, fontWeight: 800, color: GRAY_900, margin: "14px 0 0", letterSpacing: -0.3 }}>
-                  {PHONE_DISPLAY}
-                </p>
-                <p style={{ fontSize: 11, color: GRAY_300, margin: "6px 0 0" }}>
-                  Avg. transfer: 28 seconds
-                </p>
-
-                <div style={{ height: 1, background: GRAY_200, margin: "20px 0" }} />
-
-                <div style={{ textAlign: "left" }}>
-                  {[
-                    { icon: "\u{1F512}", text: "Info never shared without your consent" },
-                    { icon: "\u{1F4CD}", text: "Agents licensed in Michigan" },
-                    { icon: "\u26A1", text: "Connected in under 30 sec" },
-                  ].map((item, i) => (
-                    <div key={i} style={{
-                      display: "flex", gap: 8, alignItems: "flex-start",
-                      marginBottom: i < 2 ? 10 : 0,
-                    }}>
-                      <span style={{ fontSize: 14, lineHeight: 1.4 }}>{item.icon}</span>
-                      <span style={{ fontSize: 12, color: GRAY_500, lineHeight: 1.4 }}>{item.text}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+                {t}
+              </span>
+            ))}
           </div>
         </div>
       </div>
@@ -547,7 +348,7 @@ function App() {
         padding: "24px 28px", borderTop: `1px solid ${GRAY_200}`,
         textAlign: "center", fontSize: 12, color: GRAY_300,
       }}>
-        &copy; 2026 CarInsurance.com — A QuinStreet Company &middot; Privacy &middot; Terms
+        &copy; 2026 CarInsurance.com &mdash; A QuinStreet Company &middot; Privacy &middot; Terms
       </footer>
     </div>
   );
